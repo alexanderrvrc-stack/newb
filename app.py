@@ -1,15 +1,64 @@
 from flask import Flask, render_template_string, request, session
 import random
 
-app = Flask(__name__)app.secret_key = 'your-secret-key-here-change-this'  # Needed for sessions
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-here-change-this'  # Needed for sessions
+
+# HTML template for home page
+HOME_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Python Website</title>
+    <style>
+        body { font-family: Arial; margin: 50px; background-color: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        h1 { color: #333; }
+        .button { background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 5px; display: inline-block; }
+        .button:hover { background-color: #45a049; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to My Python Website! 🐍</h1>
+        <p>This is a simple website built with Flask and deployed for free!</p>
+        <p><a href="/about" class="button">About Me</a></p>
+        <p><a href="/projects" class="button">My Projects</a></p>
+        <p><a href="/game" class="button">🎲 Play Game</a></p>
+    </div>
+</body>
+</html>
+'''
 
 @app.route('/')
 def home():
-    return '<h1>Hello, World!</h1><p>My first Python website!</p>'
+    return render_template_string(HOME_TEMPLATE)
 
 @app.route('/about')
 def about():
-    return '<h1>About Me</h1><p>This is my about page!</p>'
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>About - My Python Website</title>
+        <style>
+            body { font-family: Arial; margin: 50px; background-color: #f0f0f0; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+            h1 { color: #333; }
+            .button { background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>About Me</h1>
+            <p>I'm learning Python and web development!</p>
+            <p>This website was built using Flask framework.</p>
+            <p><a href="/" class="button">← Back Home</a></p>
+        </div>
+    </body>
+    </html>
+    '''
+
 @app.route('/projects')
 def projects():
     return '''
@@ -20,6 +69,8 @@ def projects():
         <style>
             body { font-family: Arial; margin: 50px; background-color: #f0f0f0; }
             .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+            h1 { color: #333; }
+            .button { background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
         </style>
     </head>
     <body>
@@ -29,15 +80,16 @@ def projects():
             <ul>
                 <li>Learning Python</li>
                 <li>Building websites</li>
-                <p><a href="/game" class="button">🎲 Play Game</a></p>
                 <li>Getting awesome at coding</li>
+                <li>Creating fun games</li>
             </ul>
-            <p><a href="/">← Back Home</a></p>
+            <p><a href="/" class="button">← Back Home</a></p>
         </div>
     </body>
     </html>
     '''
-    @app.route('/game', methods=['GET', 'POST'])
+
+@app.route('/game', methods=['GET', 'POST'])
 def number_game():
     # Initialize game if not started
     if 'secret_number' not in session:
@@ -126,5 +178,6 @@ def number_game():
     '''
     
     return game_template
+
 if __name__ == '__main__':
     app.run(debug=True)
