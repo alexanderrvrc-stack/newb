@@ -20,8 +20,9 @@ HOME_TEMPLATE = '''
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to My Python Website! 🐍</h1>
+        <h1>VÄLKOMMEN MAJA! till min 🐍 hemsida! </h1>
         <p>This is a simple website built with Flask and deployed for free!</p>
+       <p>"blablabla..."</p>
         <p><a href="/about" class="button">About Me</a></p>
         <p><a href="/projects" class="button">My Projects</a></p>
         <p><a href="/game" class="button">🎲 Play Game</a></p>
