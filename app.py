@@ -570,17 +570,291 @@ def knight_game():
                 return slime;
             }
             
-            // Rest of the game functions would continue here...
-            // For brevity, I'll include the essential functions
+            function spawnSlime(slime) {
+                const arena = document.getElementById('gameArena');
+                const slimeEl = document.createElement('div');
+                slimeEl.className = 'slime ' + slime.type + '-slime';
+                slimeEl.id = 'slime-' + slime.id;
+                slimeEl.textContent = slime.type === 'boss' ? '👑' : slime.type === 'elite' ? '💀' : '🟢';
+                slimeEl.style.left = slime.x + 'px';
+                slimeEl.style.top = slime.y + 'px';
+                arena.appendChild(slimeEl);
+                slime.element = slimeEl;
+                gameState.slimes.push(slime);
+            }
+            
+            function startWave() {
+                log('Wave ' + gameState.wave + ' begins!');
+                gameState.waveProgress = 0;
+                
+                const baseSlimes = Math.min(3 + gameState.wave, 12);
+                const eliteSlimes = Math.floor(gameState.wave / 3);
+                const bossSlimes = Math.floor(gameState.wave / 10);
+                
+                // Spawn slimes at edges
+                for (let i = 0; i < baseSlimes; i++) {
+                    setTimeout(() => {
+                        const edge = Math.floor(Math.random() * 4);
+                        let x, y;
+                        switch(edge) {
+                            case 0: x = 0; y = Math.random() * 360; break;
+                            case 1: x = 560; y = Math.random() * 360; break;
+                            case 2: x = Math.random() * 560; y = 0; break;
+                            case 3: x = Math.random() * 560; y = 360; break;
+                        }
+                        spawnSlime(createSlime(x, y, 'normal'));
+                    }, i * 1000);
+                }
+                
+                // Spawn elite slimes
+                for (let i = 0; i < eliteSlimes; i++) {
+                    setTimeout(() => {
+                        spawnSlime(createSlime(Math.random() * 560, Math.random() * 360, 'elite'));
+                    }, (baseSlimes + i) * 1000);
+                }
+                
+                // Spawn boss slimes
+                for (let i = 0; i < bossSlimes; i++) {
+                    setTimeout(() => {
+                        spawnSlime(createSlime(300, 200, 'boss'));
+                        log('💀 BOSS SLIME APPEARS! 💀');
+                    }, (baseSlimes + eliteSlimes + i) * 1500);
+                }
+            }
+            
+            function moveSlimes() {
+                gameState.slimes.forEach(slime => {
+                    if (!slime.element) return;
+                    
+                    // Move towards knight
+                    const dx = gameState.knight.x - slime.x;
+                    const dy = gameState.knight.y - slime.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance > 5) {
+                        slime.x += (dx/distance) * slime.speed;
+                        slime.y += (dy/distance) * slime.speed;
+                        
+                        slime.element.style.left = slime.x + 'px';
+                        slime.element.style.top = slime.y + 'px';
+                        
+                        // Attack knight if close enough
+                        if (distance < 40 && Math.random() < 0.02) {
+                            attackKnight(slime);
+                        }
+                    }
+                });
+            }
+            
+            function attackKnight(slime) {
+                const damage = Math.max(1, slime.attack - (gameState.knight.defense + gameState.equipment.armor.defense));
+                gameState.knight.hp -= damage;
+                
+                showDamageText(gameState.knight.x + 300, gameState.knight.y + 200, '-' + damage, '#FF4444');
+                log('Slime attacks for ' + damage + ' damage!');
+                
+                if (gameState.knight.hp <= 0) {
+                    gameOver();
+                }
+                
+                updateStats();
+            }
+            
+            function attackSlimes() {
+                const now = Date.now();
+                if (now - gameState.lastAttack < gameState.attackCooldown) return;
+                
+                gameState.lastAttack = now;
+                const attackRange = 60;
+                const totalAttack = gameState.knight.attack + gameState.equipment.sword.attack;
+                
+                gameState.slimes.forEach((slime, index) => {
+                    const dx = gameState.knight.x - slime.x;
+                    const dy = gameState.knight.y - slime.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance < attackRange) {
+                        const damage = totalAttack + Math.floor(Math.random() * 5);
+                        slime.hp -= damage;
+                        
+                        showDamageText(slime.x, slime.y, '-' + damage, '#FFFF44');
+                        
+                        if (slime.hp <= 0) {
+                            killSlime(slime, index);
+                        }
+                    }
+                });
+            }
+            
+            function killSlime(slime, index) {
+                if (slime.element) {
+                    slime.element.remove();
+                }
+                
+                // Gain EXP and gold
+                const expGain = slime.type === 'boss' ? 20 : slime.type === 'elite' ? 8 : 3;
+                const goldGain = slime.type === 'boss' ? 25 : slime.type === 'elite' ? 10 : 5;
+                const scoreGain = slime.type === 'boss' ? 100 : slime.type === 'elite' ? 40 : 10;
+                
+                gameState.knight.exp += expGain;
+                gameState.knight.gold += goldGain;
+                gameState.knight.score += scoreGain;
+                
+                log('Killed ' + slime.type + ' slime! +' + expGain + ' EXP, +' + goldGain + ' gold');
+                
+                // Level up check
+                if (gameState.knight.exp >= gameState.knight.expNeeded) {
+                    levelUp();
+                }
+                
+                // Spawn EXP orb
+                createExpOrb(slime.x, slime.y);
+                
+                gameState.slimes.splice(index, 1);
+                
+                // Check wave completion
+                if (gameState.slimes.length === 0) {
+                    setTimeout(() => {
+                        gameState.wave++;
+                        startWave();
+                    }, 2000);
+                }
+                
+                updateStats();
+                updateShop();
+            }
+            
+            function levelUp() {
+                gameState.knight.level++;
+                gameState.knight.exp -= gameState.knight.expNeeded;
+                gameState.knight.expNeeded = Math.floor(gameState.knight.expNeeded * 1.5);
+                gameState.knight.maxHp += 20;
+                gameState.knight.hp = gameState.knight.maxHp; // Full heal on level up
+                gameState.knight.attack += 2;
+                gameState.knight.defense += 1;
+                
+                log('🎉 LEVEL UP! Level ' + gameState.knight.level + '! All stats increased and HP restored!');
+                showDamageText(gameState.knight.x + 300, gameState.knight.y + 200, 'LEVEL UP!', '#FFD700');
+            }
+            
+            function createExpOrb(x, y) {
+                const arena = document.getElementById('gameArena');
+                const orb = document.createElement('div');
+                orb.className = 'exp-orb';
+                orb.style.left = x + 'px';
+                orb.style.top = y + 'px';
+                arena.appendChild(orb);
+                
+                setTimeout(() => orb.remove(), 2000);
+            }
+            
+            function showDamageText(x, y, text, color) {
+                const arena = document.getElementById('gameArena');
+                const damage = document.createElement('div');
+                damage.className = 'damage-text';
+                damage.textContent = text;
+                damage.style.left = x + 'px';
+                damage.style.top = y + 'px';
+                damage.style.color = color;
+                arena.appendChild(damage);
+                
+                setTimeout(() => damage.remove(), 1000);
+            }
+            
+            function gameLoop() {
+                if (!gameState.running || gameState.paused) return;
+                
+                moveKnight();
+                moveSlimes();
+                updateStats();
+                
+                requestAnimationFrame(gameLoop);
+            }
+            
+            function moveKnight() {
+                const knight = document.getElementById('knight');
+                let moved = false;
+                
+                if (gameState.keys['ArrowUp'] || gameState.keys['w'] || gameState.keys['W']) {
+                    gameState.knight.y = Math.max(0, gameState.knight.y - 3);
+                    moved = true;
+                }
+                if (gameState.keys['ArrowDown'] || gameState.keys['s'] || gameState.keys['S']) {
+                    gameState.knight.y = Math.min(360, gameState.knight.y + 3);
+                    moved = true;
+                }
+                if (gameState.keys['ArrowLeft'] || gameState.keys['a'] || gameState.keys['A']) {
+                    gameState.knight.x = Math.max(0, gameState.knight.x - 3);
+                    moved = true;
+                }
+                if (gameState.keys['ArrowRight'] || gameState.keys['d'] || gameState.keys['D']) {
+                    gameState.knight.x = Math.min(560, gameState.knight.x + 3);
+                    moved = true;
+                }
+                
+                if (moved) {
+                    knight.style.left = gameState.knight.x + 'px';
+                    knight.style.top = gameState.knight.y + 'px';
+                }
+            }
+            
+            function pauseGame() {
+                gameState.paused = !gameState.paused;
+                document.getElementById('pauseBtn').textContent = gameState.paused ? 'Resume' : 'Pause';
+                if (!gameState.paused) gameLoop();
+            }
+            
+            function gameOver() {
+                gameState.running = false;
+                log('💀 Game Over! Final Score: ' + gameState.knight.score + ', Wave: ' + gameState.wave + ', Level: ' + gameState.knight.level);
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('submitBtn').style.display = 'inline-block';
+                
+                // Clear all slimes
+                gameState.slimes.forEach(slime => {
+                    if (slime.element) slime.element.remove();
+                });
+                gameState.slimes = [];
+            }
+            
+            function submitGameScore() {
+                const name = document.getElementById('playerName').value.trim();
+                if (!name) {
+                    alert('Please enter your name!');
+                    return;
+                }
+                
+                fetch('/submit-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        score: gameState.knight.score,
+                        level: gameState.knight.level,
+                        wave: gameState.wave,
+                        game: 'knight'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Score submitted!');
+                        window.location.href = '/highscores';
+                    }
+                });
+            }
             
             function startGame() {
                 gameState.running = true;
                 gameState.paused = false;
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('pauseBtn').disabled = false;
+                
                 log('🎮 Game Started! Survive as long as you can!');
-                updateStats();
-                updateShop();
+                startWave();
+                gameLoop();
             }
             
             // Event listeners
@@ -590,6 +864,12 @@ def knight_game():
             
             document.addEventListener('keyup', (e) => {
                 gameState.keys[e.key] = false;
+            });
+            
+            document.getElementById('gameArena').addEventListener('click', () => {
+                if (gameState.running && !gameState.paused) {
+                    attackSlimes();
+                }
             });
             
             // Initialize
