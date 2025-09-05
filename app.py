@@ -678,6 +678,7 @@ def knight_game():
                     lastDirection: 'right'
                 };
                 gameState.wave = 1;
+                gameState.lastUltimate = 0;
                 gameState.equipment = {
                     sword: { name: 'Rusty Sword', attack: 0, cost: 0 },
                     armor: { name: 'Cloth Armor', defense: 0, cost: 0 }
@@ -696,6 +697,7 @@ def knight_game():
                 
                 updateStats();
                 updateShop();
+                updateUltimateCooldown();
             }
             
             function submitGameScore() {
