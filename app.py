@@ -485,4 +485,418 @@ def knight_game():
                 let hitCount = 0;
                 gameState.slimes.forEach((slime, index) => {
                     const dx = gameState.knight.x - slime.x;
-                    const dy
+                    const dy = gameState.knight.y - slime.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance < attackRange) {
+                        const damage = totalAttack + Math.floor(Math.random() * 8) - 2;
+                        slime.hp -= Math.max(1, damage);
+                        hitCount++;
+                        
+                        // Add hit animation to slime
+                        slime.element.classList.add('hit');
+                        setTimeout(() => {
+                            if (slime.element) slime.element.classList.remove('hit');
+                        }, 300);
+                        
+                        showDamageText(slime.x, slime.y, '-' + Math.max(1, damage), '#FFD700');
+                        
+                        if (slime.hp <= 0) {
+                            killSlime(slime, index);
+                        }
+                    }
+                });
+                
+                if (hitCount > 0) {
+                    log('Sword strike hits ' + hitCount + ' slime' + (hitCount > 1 ? 's' : '') + '!');
+                }
+                
+                // Remove attack animation after duration
+                setTimeout(() => {
+                    knight.classList.remove('attacking', 'attack-right', 'attack-left', 'attack-up', 'attack-down');
+                    gameState.attacking = false;
+                }, 300);
+            }
+            
+            function killSlime(slime, index) {
+                if (slime.element) {
+                    slime.element.remove();
+                }
+                
+                // Gain EXP, gold, and score
+                const expGain = slime.type === 'boss' ? 30 : slime.type === 'elite' ? 12 : 4;
+                const goldGain = slime.type === 'boss' ? 40 : slime.type === 'elite' ? 15 : 6;
+                const scoreGain = slime.type === 'boss' ? 150 : slime.type === 'elite' ? 60 : 15;
+                
+                gameState.knight.exp += expGain;
+                gameState.knight.gold += goldGain;
+                gameState.knight.score += scoreGain;
+                
+                log('Defeated ' + slime.type + ' slime! +' + expGain + ' EXP, +' + goldGain + ' gold');
+                
+                // Level up check
+                if (gameState.knight.exp >= gameState.knight.expNeeded) {
+                    levelUp();
+                }
+                
+                // Spawn EXP orb
+                createExpOrb(slime.x, slime.y);
+                
+                gameState.slimes.splice(index, 1);
+                
+                // Check wave completion
+                if (gameState.slimes.length === 0) {
+                    setTimeout(() => {
+                        gameState.wave++;
+                        startWave();
+                    }, 2000);
+                }
+                
+                updateStats();
+                updateShop();
+            }
+            
+            function levelUp() {
+                gameState.knight.level++;
+                gameState.knight.exp -= gameState.knight.expNeeded;
+                gameState.knight.expNeeded = Math.floor(gameState.knight.expNeeded * 1.4);
+                gameState.knight.maxHp += 25;
+                gameState.knight.hp = gameState.knight.maxHp; // Full heal on level up
+                gameState.knight.attack += 3;
+                gameState.knight.defense += 2;
+                
+                log('🎉 LEVEL UP! Level ' + gameState.knight.level + '! All stats increased and HP fully restored!', true);
+                showDamageText(gameState.knight.x + 350, gameState.knight.y + 250, 'LEVEL UP!', '#f39c12');
+                
+                // Screen flash effect
+                const arena = document.getElementById('gameArena');
+                arena.style.boxShadow = 'inset 0 0 50px #f39c12';
+                setTimeout(() => {
+                    arena.style.boxShadow = 'inset 0 0 30px rgba(0,0,0,0.4)';
+                }, 500);
+            }
+            
+            function createExpOrb(x, y) {
+                const arena = document.getElementById('gameArena');
+                const orb = document.createElement('div');
+                orb.className = 'exp-orb';
+                orb.style.left = x + 'px';
+                orb.style.top = y + 'px';
+                arena.appendChild(orb);
+                
+                setTimeout(() => orb.remove(), 3000);
+            }
+            
+            function showDamageText(x, y, text, color) {
+                const arena = document.getElementById('gameArena');
+                const damage = document.createElement('div');
+                damage.className = 'damage-text';
+                damage.textContent = text;
+                damage.style.left = x + 'px';
+                damage.style.top = y + 'px';
+                damage.style.color = color;
+                arena.appendChild(damage);
+                
+                setTimeout(() => damage.remove(), 1200);
+            }
+            
+            function gameLoop() {
+                if (!gameState.running || gameState.paused) return;
+                
+                moveKnight();
+                moveSlimes();
+                updateCooldown();
+                updateStats();
+                
+                requestAnimationFrame(gameLoop);
+            }
+            
+            function moveKnight() {
+                const knight = document.getElementById('knight');
+                let moved = false;
+                const speed = 4;
+                
+                if (gameState.keys['ArrowUp'] || gameState.keys['w'] || gameState.keys['W']) {
+                    gameState.knight.y = Math.max(0, gameState.knight.y - speed);
+                    gameState.knight.lastDirection = 'up';
+                    moved = true;
+                }
+                if (gameState.keys['ArrowDown'] || gameState.keys['s'] || gameState.keys['S']) {
+                    gameState.knight.y = Math.min(450, gameState.knight.y + speed);
+                    gameState.knight.lastDirection = 'down';
+                    moved = true;
+                }
+                if (gameState.keys['ArrowLeft'] || gameState.keys['a'] || gameState.keys['A']) {
+                    gameState.knight.x = Math.max(0, gameState.knight.x - speed);
+                    gameState.knight.lastDirection = 'left';
+                    moved = true;
+                }
+                if (gameState.keys['ArrowRight'] || gameState.keys['d'] || gameState.keys['D']) {
+                    gameState.knight.x = Math.min(650, gameState.knight.x + speed);
+                    gameState.knight.lastDirection = 'right';
+                    moved = true;
+                }
+                
+                if (moved) {
+                    knight.style.left = gameState.knight.x + 'px';
+                    knight.style.top = gameState.knight.y + 'px';
+                }
+            }
+            
+            function pauseGame() {
+                gameState.paused = !gameState.paused;
+                document.getElementById('pauseBtn').textContent = gameState.paused ? 'Resume' : 'Pause';
+                log(gameState.paused ? 'Game paused.' : 'Game resumed.');
+                if (!gameState.paused) gameLoop();
+            }
+            
+            function gameOver() {
+                gameState.running = false;
+                log('💀 GAME OVER! Final Score: ' + gameState.knight.score.toLocaleString() + ', Wave: ' + gameState.wave + ', Level: ' + gameState.knight.level, true);
+                
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('submitBtn').style.display = 'inline-block';
+                
+                // Clear all slimes
+                gameState.slimes.forEach(slime => {
+                    if (slime.element) slime.element.remove();
+                });
+                gameState.slimes = [];
+            }
+            
+            function resetGame() {
+                gameState.knight = { 
+                    x: 350, y: 250, 
+                    hp: 100, maxHp: 100, 
+                    attack: 10, defense: 2, 
+                    level: 1, exp: 0, expNeeded: 10, 
+                    gold: 0, score: 0,
+                    lastDirection: 'right'
+                };
+                gameState.wave = 1;
+                gameState.equipment = {
+                    sword: { name: 'Rusty Sword', attack: 0, cost: 0 },
+                    armor: { name: 'Cloth Armor', defense: 0, cost: 0 }
+                };
+                
+                // Clear arena
+                const arena = document.getElementById('gameArena');
+                const elementsToRemove = arena.querySelectorAll('.slime, .damage-text, .exp-orb');
+                elementsToRemove.forEach(el => el.remove());
+                
+                // Reset knight position
+                const knight = document.getElementById('knight');
+                knight.style.left = '350px';
+                knight.style.top = '250px';
+                knight.classList.remove('attacking', 'attack-right', 'attack-left', 'attack-up', 'attack-down');
+                
+                updateStats();
+                updateShop();
+            }
+            
+            function submitGameScore() {
+                const name = document.getElementById('playerName').value.trim();
+                if (!name) {
+                    alert('Please enter your name!');
+                    return;
+                }
+                
+                fetch('/submit-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        score: gameState.knight.score,
+                        level: gameState.knight.level,
+                        wave: gameState.wave,
+                        game: 'knight'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Score submitted to the Hall of Fame!');
+                        window.location.href = '/highscores';
+                    }
+                })
+                .catch(() => {
+                    alert('Error submitting score. Please try again!');
+                });
+            }
+            
+            function startGame() {
+                resetGame();
+                gameState.running = true;
+                gameState.paused = false;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('submitBtn').style.display = 'none';
+                
+                log('⚔️ Battle commenced! May your blade stay sharp!', true);
+                startWave();
+                gameLoop();
+            }
+            
+            // Event listeners
+            document.addEventListener('keydown', (e) => {
+                gameState.keys[e.key] = true;
+                
+                // Handle attack with spacebar
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    if (gameState.running && !gameState.paused) {
+                        performAttack();
+                    }
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                gameState.keys[e.key] = false;
+            });
+            
+            // Prevent spacebar from scrolling the page
+            document.addEventListener('keydown', (e) => {
+                if (e.key === ' ') {
+                    e.preventDefault();
+                }
+            });
+            
+            // Initialize
+            updateStats();
+            updateShop();
+            log('🎮 Ready for battle! Press Start Battle to begin.');
+        </script>
+    </body>
+    </html>
+    '''
+
+@app.route('/submit-score', methods=['POST'])
+def submit_score():
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()[:20]  # Limit name length
+        score = int(data.get('score', 0))
+        game = data.get('game', '')
+        
+        if name and score > 0:
+            score_data = {
+                'name': name,
+                'score': score,
+                'game': game,
+                'timestamp': time.time()
+            }
+            
+            # Add extra data for knight game
+            if game == 'knight':
+                score_data['level'] = data.get('level', 1)
+                score_data['wave'] = data.get('wave', 1)
+            
+            highscores.append(score_data)
+            
+            # Keep only top 15 scores for knight game
+            knight_scores = [s for s in highscores if s['game'] == 'knight']
+            knight_scores.sort(key=lambda x: x['score'], reverse=True)
+            highscores[:] = [s for s in highscores if s['game'] != 'knight'] + knight_scores[:15]
+            
+            return {'success': True}
+    except:
+        pass
+    
+    return {'success': False}
+
+@app.route('/highscores')
+def highscores_page():
+    # Get knight game scores (sorted by highest score first)
+    knight_scores = [s for s in highscores if s['game'] == 'knight']
+    knight_scores.sort(key=lambda x: x['score'], reverse=True)
+    
+    knight_table = ""
+    if knight_scores:
+        for i, score in enumerate(knight_scores, 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            level = score.get('level', 1)
+            wave = score.get('wave', 1)
+            knight_table += f"<tr><td>{medal}</td><td>{score['name']}</td><td>{score['score']:,}</td><td>Level {level}</td><td>Wave {wave}</td></tr>"
+    else:
+        knight_table = "<tr><td colspan='5'>No brave knights have fallen yet! Be the first to enter the arena!</td></tr>"
+    
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Hall of Fame - Knight Survival</title>
+        <style>
+            body {{ font-family: Arial; margin: 0; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; min-height: 100vh; }}
+            .container {{ max-width: 1000px; margin: 0 auto; padding: 40px; }}
+            .header {{ text-align: center; margin-bottom: 40px; }}
+            h1 {{ font-size: 3em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }}
+            .subtitle {{ font-size: 1.3em; opacity: 0.9; margin-bottom: 30px; }}
+            
+            .leaderboard {{ background: rgba(0,0,0,0.4); border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }}
+            h2 {{ color: #f39c12; border-bottom: 3px solid #e67e22; padding-bottom: 15px; margin-bottom: 25px; font-size: 2em; }}
+            
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ padding: 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }}
+            th {{ background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; font-weight: bold; font-size: 1.1em; }}
+            tr:hover {{ background-color: rgba(255,255,255,0.05); }}
+            tr:nth-child(even) {{ background-color: rgba(255,255,255,0.02); }}
+            
+            .rank-1 {{ background: linear-gradient(135deg, #f1c40f, #f39c12) !important; color: #2c3e50; font-weight: bold; }}
+            .rank-2 {{ background: linear-gradient(135deg, #bdc3c7, #95a5a6) !important; color: #2c3e50; font-weight: bold; }}
+            .rank-3 {{ background: linear-gradient(135deg, #e67e22, #d35400) !important; color: white; font-weight: bold; }}
+            
+            .nav-links {{ text-align: center; margin-top: 40px; }}
+            .nav-links a {{ margin: 0 15px; color: #3498db; text-decoration: none; font-weight: bold; padding: 12px 25px; background: rgba(52,152,219,0.1); border: 1px solid #3498db; border-radius: 8px; transition: all 0.3s; }}
+            .nav-links a:hover {{ background: rgba(52,152,219,0.3); transform: translateY(-2px); }}
+            
+            .empty-state {{ text-align: center; padding: 40px; opacity: 0.7; font-style: italic; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🏆 Hall of Fame</h1>
+                <div class="subtitle">Honor the greatest knights who fought valiantly against the slime invasion</div>
+            </div>
+            
+            <div class="leaderboard">
+                <h2>⚔️ Knight Survival Champions</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Knight Name</th>
+                            <th>Score</th>
+                            <th>Final Level</th>
+                            <th>Waves Survived</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {knight_table}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="nav-links">
+                <a href="/">🏠 Return Home</a>
+                <a href="/knight-game">⚔️ Enter Battle</a>
+            </div>
+        </div>
+        
+        <script>
+            // Add special styling to top 3 rows
+            document.addEventListener('DOMContentLoaded', function() {{
+                const rows = document.querySelectorAll('tbody tr');
+                if (rows.length > 0) rows[0].classList.add('rank-1');
+                if (rows.length > 1) rows[1].classList.add('rank-2');
+                if (rows.length > 2) rows[2].classList.add('rank-3');
+            }});
+        </script>
+    </body>
+    </html>
+    '''
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
