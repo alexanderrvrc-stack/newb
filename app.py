@@ -346,13 +346,16 @@ def knight_game():
             }
             
             function createSlime(x, y, type = 'normal') {
+                // Scale stats based on wave for increasing difficulty
+                const waveMultiplier = 1 + (gameState.wave - 1) * 0.15;
+                
                 const slime = {
                     x: x !== undefined ? x : Math.random() * 650,
                     y: y !== undefined ? y : Math.random() * 450,
-                    hp: type === 'boss' ? 80 : type === 'elite' ? 25 : 12,
-                    maxHp: type === 'boss' ? 80 : type === 'elite' ? 25 : 12,
-                    attack: type === 'boss' ? 18 : type === 'elite' ? 10 : 4,
-                    speed: type === 'boss' ? 1.0 : type === 'elite' ? 1.4 : 1.1,
+                    hp: Math.floor((type === 'boss' ? 100 : type === 'elite' ? 35 : 15) * waveMultiplier),
+                    maxHp: Math.floor((type === 'boss' ? 100 : type === 'elite' ? 35 : 15) * waveMultiplier),
+                    attack: Math.floor((type === 'boss' ? 22 : type === 'elite' ? 12 : 5) * waveMultiplier),
+                    speed: (type === 'boss' ? 1.2 : type === 'elite' ? 1.6 : 1.3) + (gameState.wave - 1) * 0.05,
                     type: type,
                     id: Math.random(),
                     element: null,
